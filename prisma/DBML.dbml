@@ -1,0 +1,329 @@
+// Enums
+Enum Gender {
+  Male
+  Female
+  Other
+}
+
+Enum AgencyRole {
+  HR
+  Admin
+  Support
+  Finance
+}
+
+Enum PaymentStatus {
+  pending
+  completed
+  failed
+  refunded
+}
+
+Enum JobApplicationStatus {
+  applied
+  in_review
+  interview
+  offered
+  rejected
+  hired
+}
+
+Enum Country {
+  Afghanistan
+  Albania
+  Algeria
+  Andorra
+  Angola
+  Antigua_and_Barbuda
+  Argentina
+  Armenia
+  Australia
+  Austria
+  Azerbaijan
+  Bahamas
+  Bahrain
+  Bangladesh
+  Barbados
+  Belarus
+  Belgium
+  Belize
+  Benin
+  Bhutan
+  Bolivia
+  Bosnia_and_Herzegovina
+  Botswana
+  Brazil
+  Brunei
+  Bulgaria
+  Burkina_Faso
+  Burundi
+  Cabo_Verde
+  Cambodia
+  Cameroon
+  Canada
+  Central_African_Republic
+  Chad
+  Chile
+  China
+  Colombia
+  Comoros
+  Congo_Brazzaville
+  Congo_Kinshasa
+  Costa_Rica
+  Croatia
+  Cuba
+  Cyprus
+  Czech_Republic
+  Denmark
+  Djibouti
+  Dominica
+  Dominican_Republic
+  East_Timor
+  Ecuador
+  Egypt
+  El_Salvador
+  Equatorial_Guinea
+  Eritrea
+  Estonia
+  Eswatini
+  Ethiopia
+  Fiji
+  Finland
+  France
+  Gabon
+  Gambia
+  Georgia
+  Germany
+  Ghana
+  Greece
+  Grenada
+  Guatemala
+  Guinea
+  Guinea_Bissau
+  Guyana
+  Haiti
+  Honduras
+  Hungary
+  Iceland
+  India
+  Indonesia
+  Iran
+  Iraq
+  Ireland
+  Israel
+  Italy
+  Ivory_Coast
+  Jamaica
+  Japan
+  Jordan
+  Kazakhstan
+  Kenya
+  Kiribati
+  Korea_North
+  Korea_South
+  Kosovo
+  Kuwait
+  Kyrgyzstan
+  Laos
+  Latvia
+  Lebanon
+  Lesotho
+  Liberia
+  Libya
+  Liechtenstein
+  Lithuania
+  Luxembourg
+  Madagascar
+  Malawi
+  Malaysia
+  Maldives
+  Mali
+  Malta
+  Marshall_Islands
+  Mauritania
+  Mauritius
+  Mexico
+  Micronesia
+  Moldova
+  Monaco
+  Mongolia
+  Montenegro
+  Morocco
+  Mozambique
+  Myanmar
+  Namibia
+  Nauru
+  Nepal
+  Netherlands
+  New_Zealand
+  Nicaragua
+  Niger
+  Nigeria
+  North_Macedonia
+  Norway
+  Oman
+  Pakistan
+  Palau
+  Palestine
+  Panama
+  Papua_New_Guinea
+  Paraguay
+  Peru
+  Philippines
+  Poland
+  Portugal
+  Qatar
+  Romania
+  Russia
+  Rwanda
+  Saint_Kitts_and_Nevis
+  Saint_Lucia
+  Saint_Vincent_and_the_Grenadines
+  Samoa
+  San_Marino
+  Sao_Tome_and_Principe
+  Saudi_Arabia
+  Senegal
+  Serbia
+  Seychelles
+  Sierra_Leone
+  Singapore
+  Slovakia
+  Slovenia
+  Solomon_Islands
+  Somalia
+  South_Africa
+  South_Sudan
+  Spain
+  Sri_Lanka
+  Sudan
+  Suriname
+  Sweden
+  Switzerland
+  Syria
+  Taiwan
+  Tajikistan
+  Tanzania
+  Thailand
+  Togo
+  Tonga
+  Trinidad_and_Tobago
+  Tunisia
+  Turkey
+  Turkmenistan
+  Tuvalu
+  Uganda
+  Ukraine
+  United_Arab_Emirates
+  United_Kingdom
+  United_States
+  Uruguay
+  Uzbekistan
+  Vanuatu
+  Vatican_City
+  Venezuela
+  Vietnam
+  Yemen
+  Zambia
+  Zimbabwe
+}
+
+// Tables
+Table User {
+  id         integer   [pk, increment]
+  fullName   varchar
+  phone      varchar   [null]
+  email      varchar   [unique]
+  password   varchar
+  userType   varchar
+  verified   boolean   [default: false]
+  avatar     varchar   [null]
+  gender     Gender
+  createdAt  timestamp [default: `now()`]
+  updatedAt  timestamp
+}
+
+Table JobSeekerProfile {
+  id        integer   [pk, increment]
+  userId    integer   [unique, ref: - User.id]
+}
+
+Table Agency {
+  id         integer   [pk, increment]
+  name       varchar   [unique]
+  country    Country
+  location   varchar
+  verified   boolean
+  createdAt  timestamp [default: `now()`]
+  updatedAt  timestamp
+}
+
+Table AgencyUserProfile {
+  id         integer   [pk, increment]
+  agencyId   integer   [ref: > Agency.id]
+  userId     integer   [unique, ref: - User.id]
+  userType   AgencyRole
+  createdAt  timestamp [default: `now()`]
+  updatedAt  timestamp
+}
+
+Table File {
+  id         integer   [pk, increment]
+  userId     integer   [ref: > User.id]
+  fileUrl    varchar
+  fileType   varchar    // e.g. CV, ID, Certification, Business Document
+  uploadedAt timestamp  [default: `now()`]
+}
+
+Table Job {
+  id          integer    [pk, increment]
+  agencyId    integer    [ref: > Agency.id]
+  title       varchar
+  description text
+  location    varchar
+  salary      varchar
+  skills      varchar[]  // array of strings
+  isActive    boolean
+  createdAt   timestamp  [default: `now()`]
+  updatedAt   timestamp
+}
+
+Table JobApplication {
+  id          integer               [pk, increment]
+  jobId       integer               [ref: > Job.id]
+  applicantId integer               [ref: > User.id]
+  status      JobApplicationStatus
+  createdAt   timestamp             [default: `now()`]
+  updatedAt   timestamp
+}
+
+Table Contract {
+  id         integer   [pk, increment]
+  userId     integer   [ref: > User.id]
+  fileUrl    varchar
+  createdAt  timestamp [default: `now()`]
+  updatedAt  timestamp
+}
+
+Table Payment {
+  id         integer        [pk, increment]
+  payerId    integer        [ref: > User.id]
+  payeeId    integer        [ref: > User.id]
+  agencyId   integer
+  amount     decimal
+  status     PaymentStatus  [default: 'pending']
+  createdAt  timestamp      [default: `now()`]
+  updatedAt  timestamp
+}
+
+Table Blog {
+  id          integer   [pk, increment]
+  author      varchar
+  title       varchar
+  slug        varchar   [unique]
+  content     text
+  language    varchar
+  publishedAt timestamp
+  createdAt   timestamp  [default: `now()`]
+  updatedAt   timestamp
+}

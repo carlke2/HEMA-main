@@ -1,0 +1,1631 @@
+generator client {
+    provider      = "prisma-client-js"
+    binaryTargets = ["native", "debian-openssl-1.1.x"]
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+model User {
+    id            Int       @id @default(autoincrement())
+    fullName      String
+    phone         String?
+    email         String    @unique
+    password      String
+    userType      UserType
+    verified      Boolean   @default(false)
+    avatar        String?
+    gender        Gender
+    dateOfBirth   DateTime?
+    firstLoginAt  DateTime?
+    createdAt     DateTime  @default(now())
+    updatedAt     DateTime  @updatedAt
+
+    jobSeekerProfile      JobSeekerProfile?
+    agencyUserProfile     AgencyUserProfile?
+    HostFamilyUserProfile HostFamilyUserProfile?
+    AuPairUserProfile     AuPairUserProfile?
+    files                 File[]
+    jobApplications       JobApplication[]       @relation("ApplicantApplications")
+    contracts             Contract[]
+    paymentsMade          Payment[]              @relation("PaymentsMade")
+    paymentsReceived      Payment[]              @relation("PaymentsReceived")
+    AuPairContracts           AuPairContract[]
+    interestsAsAuPair         FamilyAuPairInterest[]
+    notifications             Notification[]
+    trainingAssignments  TrainingAssignment[]
+    trainingProgress     TrainingProgress[]
+}
+
+model Training {
+    id          Int      @id @default(autoincrement())
+    title       String
+    description String?
+    sortOrder   Int      @default(0)
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
+    steps        TrainingStep[]
+    assignments  TrainingAssignment[]
+}
+
+model TrainingStep {
+    id          Int      @id @default(autoincrement())
+    trainingId  Int
+    title       String
+    description String?
+    sortOrder   Int      @default(0)
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
+    training Training          @relation(fields: [trainingId], references: [id], onDelete: Cascade)
+    progress TrainingProgress[]
+}
+
+model TrainingAssignment {
+    id        Int      @id @default(autoincrement())
+    userId    Int
+    trainingId Int
+    assignedAt DateTime @default(now())
+    assignedByUserId Int?
+
+    user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    training Training @relation(fields: [trainingId], references: [id], onDelete: Cascade)
+
+    @@unique([userId, trainingId])
+}
+
+model TrainingProgress {
+    id            Int       @id @default(autoincrement())
+    userId        Int
+    trainingStepId Int
+    completedAt   DateTime?
+    createdAt     DateTime  @default(now())
+    updatedAt     DateTime  @updatedAt
+
+    user  User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+    step  TrainingStep @relation(fields: [trainingStepId], references: [id], onDelete: Cascade)
+
+    @@unique([userId, trainingStepId])
+}
+
+model JobSeekerProfile {
+    id        Int      @id @default(autoincrement())
+    userId    Int      @unique
+    user      User     @relation(fields: [userId], references: [id])
+    country   Country?
+    location  String?
+    skills    String[] @default([])
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+}
+
+model AuPairUserProfile {
+    id        Int            @id @default(autoincrement())
+    userId    Int            @unique
+    user      User           @relation(fields: [userId], references: [id])
+    country   Country?
+    location  String?
+    tribe     AfricanTribes?
+    religion  Religion?
+    education String?
+    skills    String[]       @default([])
+    createdAt DateTime       @default(now())
+    updatedAt DateTime       @updatedAt
+}
+
+model Agency {
+    id          Int      @id @default(autoincrement())
+    uuid        String   @unique @default(uuid())
+    name        String
+    country     Country
+    location    String
+    verified    Boolean  @default(false)
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+    avatar      String?
+    description String?
+    website     String?
+    socialLinks String[] @default([])
+    email       String?
+    avatarUrl   String?
+
+    jobs      Job[]
+    users     AgencyUserProfile[]
+    contracts Contract[]
+
+    @@unique([name, country], map: "agency_name_country_key")
+}
+
+model AgencyUserProfile {
+    id        Int        @id @default(autoincrement())
+    agencyId  String
+    agency    Agency     @relation(fields: [agencyId], references: [uuid])
+    userType  AgencyRole
+    country   Country?
+    location  String?
+    createdAt DateTime   @default(now())
+    updatedAt DateTime   @updatedAt
+
+    userId Int  @unique
+    user   User @relation(fields: [userId], references: [id])
+}
+
+model HostFamily {
+    id          Int            @id @default(autoincrement())
+    uuid        String         @unique @default(uuid())
+    name        String
+    country     Country
+    tribe       AfricanTribes?
+    religion    String?
+    location    String
+    verified    Boolean        @default(false)
+    createdAt   DateTime       @default(now())
+    updatedAt   DateTime       @updatedAt
+    avatar      String?
+    description String?
+    socialLinks String[]       @default([])
+    email       String?
+    avatarUrl   String?
+    children    Child[]
+
+    users     HostFamilyUserProfile[]
+    contracts AuPairContract[]
+    interests FamilyAuPairInterest[]
+}
+
+model HostFamilyUserProfile {
+    id        Int        @id @default(autoincrement())
+    familyId  String
+    family    HostFamily @relation(fields: [familyId], references: [uuid])
+    country   Country?
+    location  String?
+    createdAt DateTime   @default(now())
+    updatedAt DateTime   @updatedAt
+
+    userId Int  @unique
+    user   User @relation(fields: [userId], references: [id])
+}
+
+model Child {
+    id           Int         @id @default(autoincrement())
+    familyId     String
+    name         String
+    yob          DateTime
+    HostFamily   HostFamily? @relation(fields: [hostFamilyId], references: [uuid])
+    hostFamilyId String?
+}
+
+model File {
+    id         Int      @id @default(autoincrement())
+    userId     Int
+    user       User     @relation(fields: [userId], references: [id])
+    fileName   String
+    fileUrl    String   @unique
+    fileType   FileType
+    uploadedAt DateTime @default(now())
+
+    jobApplications JobApplication[] @relation("ApplicationFiles")
+
+    @@unique([userId, fileUrl], map: "file_owner_url_key")
+}
+
+model Job {
+    id          Int         @id @default(autoincrement())
+    agencyId    String
+    agency      Agency      @relation(fields: [agencyId], references: [uuid])
+    title       String
+    description String
+    category    JobCategory
+    country     Country
+    location    String
+    salary      Int
+    currency    Currency
+    skills      String[]    @default([])
+    isActive    Boolean
+    createdAt   DateTime    @default(now())
+    updatedAt   DateTime    @updatedAt
+
+    jobApplications JobApplication[]
+}
+
+model JobApplication {
+    id          Int                  @id @default(autoincrement())
+    jobId       Int
+    applicantId Int
+    files       File[]               @relation("ApplicationFiles")
+    job         Job                  @relation(fields: [jobId], references: [id])
+    applicant   User                 @relation("ApplicantApplications", fields: [applicantId], references: [id])
+    status      JobApplicationStatus
+    createdAt   DateTime             @default(now())
+    updatedAt   DateTime             @updatedAt
+}
+
+model Contract {
+    id                     Int             @id @default(autoincrement())
+    userId                 Int
+    user                   User            @relation(fields: [userId], references: [id])
+    agencyId               String
+    agency                 Agency          @relation(fields: [agencyId], references: [uuid])
+    jobTitle               String
+    description            String
+    duties                 String
+    startDate              DateTime
+    endDate                DateTime
+    salary                 Decimal
+    salaryFrequency        SalaryFrequency
+    currency               Currency
+    workingHours           String
+    leaveAndVacationPolicy String
+    terminationConditions  String
+    status                 ContractStatus  @default(ACTIVE)
+    createdAt              DateTime        @default(now())
+    updatedAt              DateTime        @updatedAt
+
+    @@unique([userId, agencyId], map: "contract_user_agency_job_unique")
+}
+
+model AuPairContract {
+    id                     Int             @id @default(autoincrement())
+    userId                 Int
+    user                   User            @relation(fields: [userId], references: [id])
+    familyId               String
+    family                 HostFamily      @relation(fields: [familyId], references: [uuid])
+    description            String
+    duties                 String
+    startDate              DateTime
+    endDate                DateTime
+    salary                 Decimal
+    salaryFrequency        SalaryFrequency
+    currency               Currency
+    workingHours           String
+    leaveAndVacationPolicy String
+    terminationConditions  String
+    matchScore             Int             @default(0)
+    status                 ContractStatus  @default(PENDING)
+    createdAt              DateTime        @default(now())
+    updatedAt              DateTime        @updatedAt
+
+    @@unique([userId, familyId], map: "contract_user_hostfamily_aupair_unique")
+}
+
+enum InterestStatus {
+  FAMILY_INTERESTED
+  AU_PAIR_INTERESTED
+  AU_PAIR_UNINTERESTED
+  MEET_SCHEDULED
+  MEET_DONE
+  OFFER_EXTENDED
+  FAMILY_DECLINED
+}
+
+model FamilyAuPairInterest {
+  id                Int           @id @default(autoincrement())
+  familyId          String
+  family            HostFamily    @relation(fields: [familyId], references: [uuid])
+  userId             Int
+  user               User          @relation(fields: [userId], references: [id])
+  status             InterestStatus @default(FAMILY_INTERESTED)
+  scheduledMeetAt    DateTime?
+  meetingLink        String?
+  meetNotes          String?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  @@unique([familyId, userId], map: "interest_family_aupair_unique")
+}
+
+model Notification {
+  id          Int       @id @default(autoincrement())
+  userId      Int
+  user        User      @relation(fields: [userId], references: [id])
+  type        String
+  title       String
+  message     String
+  relatedType String?
+  relatedId   String?
+  readAt      DateTime?
+  createdAt   DateTime  @default(now())
+}
+
+model Payment {
+    id        Int           @id @default(autoincrement())
+    payerId   Int
+    payer     User          @relation("PaymentsMade", fields: [payerId], references: [id])
+    payeeId   Int
+    payee     User          @relation("PaymentsReceived", fields: [payeeId], references: [id])
+    agencyId  Int
+    amount    Decimal
+    currency  Currency
+    status    PaymentStatus @default(pending)
+    createdAt DateTime      @default(now())
+    updatedAt DateTime      @updatedAt
+}
+
+model Blog {
+    id          String   @id @default(cuid())
+    title       String
+    content     String
+    tags        String[]
+    type        String
+    thumbnail   String?
+    identifier  String   @unique
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @default(now())
+    description String   @default("More about this blog")
+    ifPreview   Boolean  @default(false)
+}
+
+enum Gender {
+    Male
+    Female
+    Other
+    preferNotToSay
+}
+
+enum UserType {
+    jobSeeker
+    agencyUser
+    aupair
+    hostFamily
+    Admin
+    Support
+}
+
+enum FileType {
+    CV
+    ID
+    Passport
+    Certification
+    BusinessDocument
+    Other
+}
+
+enum AgencyRole {
+    HR
+    Admin
+    Support
+    Finance
+}
+
+enum PaymentStatus {
+    pending
+    completed
+    failed
+    refunded
+}
+
+enum JobApplicationStatus {
+    APPLIED
+    INTERVIEW
+    OFFERED
+    REJECTED
+    HIRED
+}
+
+enum JobCategory {
+    CONSTRUCTION
+    SKILLED_TRADES
+    GENERAL_LABOR
+    CLEANING
+    HEALTHCARE
+    NURSING
+    DOCTORS
+    HOSPITALITY
+    RESTAURANT
+    HOTEL
+    DOMESTIC
+    TRANSPORT
+    LOGISTICS
+    WAREHOUSE
+    ADMIN
+    CUSTOMER_SERVICE
+    RETAIL
+    IT
+    ENGINEERING
+    FINANCE
+    BEAUTY
+    SECURITY
+    EDUCATION
+    MAINTENANCE
+    MARKETING
+    HR
+    OTHER
+}
+
+enum Currency {
+    BHD
+    KWD
+    IQD
+    OMR
+    QAR
+    SAR
+    AED
+    KSH
+    USD
+    EUR
+    GBP
+}
+
+enum SalaryFrequency {
+    MONTHLY
+    WEEKLY
+    HOURLY
+    ANNUALLY
+}
+
+enum ContractStatus {
+    ACTIVE
+    INACTIVE
+    REJECTED
+    TERMINATED
+    PENDING
+}
+
+enum Country {
+    Afghanistan
+    Albania
+    Algeria
+    Andorra
+    Angola
+    Antigua_and_Barbuda              @map("Antigua and Barbuda")
+    Argentina
+    Armenia
+    Australia
+    Austria
+    Azerbaijan
+    Bahamas
+    Bahrain
+    Bangladesh
+    Barbados
+    Belarus
+    Belgium
+    Belize
+    Benin
+    Bhutan
+    Bolivia
+    Bosnia_and_Herzegovina           @map("Bosnia and Herzegovina")
+    Botswana
+    Brazil
+    Brunei
+    Bulgaria
+    Burkina_Faso                     @map("Burkina Faso")
+    Burundi
+    Cabo_Verde                       @map("Cabo Verde")
+    Cambodia
+    Cameroon
+    Canada
+    Central_African_Republic         @map("Central African Republic")
+    Chad
+    Chile
+    China
+    Colombia
+    Comoros
+    Congo_Brazzaville                @map("Congo-Brazzaville")
+    Congo_Kinshasa                   @map("Congo-Kinshasa")
+    Costa_Rica                       @map("Costa Rica")
+    Croatia
+    Cuba
+    Cyprus
+    Czech_Republic                   @map("Czech Republic")
+    Denmark
+    Djibouti
+    Dominica
+    Dominican_Republic               @map("Dominican Republic")
+    East_Timor                       @map("East Timor")
+    Ecuador
+    Egypt
+    El_Salvador                      @map("El Salvador")
+    Equatorial_Guinea                @map("Equatorial Guinea")
+    Eritrea
+    Estonia
+    Eswatini
+    Ethiopia
+    Fiji
+    Finland
+    France
+    Gabon
+    Gambia
+    Georgia
+    Germany
+    Ghana
+    Greece
+    Grenada
+    Guatemala
+    Guinea
+    Guinea_Bissau                    @map("Guinea-Bissau")
+    Guyana
+    Haiti
+    Honduras
+    Hungary
+    Iceland
+    India
+    Indonesia
+    Iran
+    Iraq
+    Ireland
+    Israel
+    Italy
+    Ivory_Coast                      @map("Ivory Coast")
+    Jamaica
+    Japan
+    Jordan
+    Kazakhstan
+    Kenya
+    Kiribati
+    North_Korea                      @map("North Korea")
+    South_Korea                      @map("South Korea")
+    Kosovo
+    Kuwait
+    Kyrgyzstan
+    Laos
+    Latvia
+    Lebanon
+    Lesotho
+    Liberia
+    Libya
+    Liechtenstein
+    Lithuania
+    Luxembourg
+    Madagascar
+    Malawi
+    Malaysia
+    Maldives
+    Mali
+    Malta
+    Marshall_Islands                 @map("Marshall Islands")
+    Mauritania
+    Mauritius
+    Mexico
+    Micronesia
+    Moldova
+    Monaco
+    Mongolia
+    Montenegro
+    Morocco
+    Mozambique
+    Myanmar
+    Namibia
+    Nauru
+    Nepal
+    Netherlands
+    New_Zealand                      @map("New Zealand")
+    Nicaragua
+    Niger
+    Nigeria
+    North_Macedonia                  @map("North Macedonia")
+    Norway
+    Oman
+    Pakistan
+    Palau
+    Palestine
+    Panama
+    Papua_New_Guinea                 @map("Papua New Guinea")
+    Paraguay
+    Peru
+    Philippines
+    Poland
+    Portugal
+    Qatar
+    Romania
+    Russia
+    Rwanda
+    Saint_Kitts_and_Nevis            @map("Saint Kitts and Nevis")
+    Saint_Lucia                      @map("Saint Lucia")
+    Saint_Vincent_and_the_Grenadines @map("Saint Vincent and the Grenadines")
+    Samoa
+    San_Marino                       @map("San Marino")
+    Sao_Tome_and_Principe            @map("São Tomé and Príncipe")
+    Saudi_Arabia                     @map("Saudi Arabia")
+    Senegal
+    Serbia
+    Seychelles
+    Sierra_Leone                     @map("Sierra Leone")
+    Singapore
+    Slovakia
+    Slovenia
+    Solomon_Islands                  @map("Solomon Islands")
+    Somalia
+    South_Africa                     @map("South Africa")
+    South_Sudan                      @map("South Sudan")
+    Spain
+    Sri_Lanka                        @map("Sri Lanka")
+    Sudan
+    Suriname
+    Sweden
+    Switzerland
+    Syria
+    Taiwan
+    Tajikistan
+    Tanzania
+    Thailand
+    Togo
+    Tonga
+    Trinidad_and_Tobago              @map("Trinidad and Tobago")
+    Tunisia
+    Turkey
+    Turkmenistan
+    Tuvalu
+    Uganda
+    Ukraine
+    United_Arab_Emirates             @map("United Arab Emirates")
+    United_Kingdom                   @map("United Kingdom")
+    United_States                    @map("United States")
+    Uruguay
+    Uzbekistan
+    Vanuatu
+    Vatican_City                     @map("Vatican City")
+    Venezuela
+    Vietnam
+    Yemen
+    Zambia
+    Zimbabwe
+}
+
+enum Religion {
+    Christian
+    Muslim
+    Hindu
+    Buddhist
+    Seventh_Day_Adventist @map("Seventh Day Adventist")
+    Presbyterian
+    Jehovah_Witness       @map("Jehovah Witness")
+    Atheist
+    Pagan
+    Zionist
+    Rastafari
+    Jew
+    Mormon
+}
+
+// GOtten from https://www.101lasttribes.com/tribes2.html
+enum AfricanTribes {
+    Ababda
+    Abaka
+    Abbala_Arabs          @map("Abbala Arabs")
+    Abbe_Abe              @map("Abbe - Abe")
+    Abidji
+    Abure
+    Acholi
+    Ada
+    Adio
+    Adhola_Japadhola      @map("Adhola - Japadhola")
+    Adjoukrou_Adjukru     @map("Adjoukrou / Adjukru")
+    Adyumba
+    Afar
+    Agaw
+    Aghem_Wum             @map("Aghem - Wum")
+    Agwa
+    Agni_Anyi             @map("Agni / Anyi")
+    Ahanta
+    Aizi
+    Aizo
+    Aja
+    Aka_Pygmies           @map("Aka Pygmies")
+    Akan
+    Akie
+    Akiek
+    Akowa_Pygmies         @map("Akowa Pygmies")
+    Aku
+    Akuapem
+    Akwamu
+    Alagwa
+    Alur
+    Amba_Bahamba          @map("Amba / Bahamba")
+    Ambele
+    Amhara
+    Angas
+    Annang
+    Annobonese
+    Antaifasy
+    Antambahoaka
+    Antankarana
+    Antanosy
+    Antemoro
+    Antesaka
+    Anuak
+    Anufo_Chakosi         @map("Anufo-Chakosi")
+    Anyi
+    Aowin
+    Arab
+    Arbore
+    Argobba
+    Ari
+    Aringa
+    Arror
+    Ashanti
+    Assa_Asa              @map("Assa / Asa")
+    Asua_Pygmies          @map("Asua Pygmies")
+    Attie_Akye            @map("Attie / Akye")
+    Atuot
+    Atyap
+    Aushi
+    Avatime
+    Avikam
+    Avukaya
+    Aweer
+    Awori
+    Babanki
+    Babinga_Pygmies       @map("Babinga Pygmies")
+    Babongo_Pygmies       @map("Babongo Pygmies")
+    Badinga
+    Bafia_Rekpak          @map("Bafia / Rekpak")
+    Bafo_Bafaw            @map("Bafo - Bafaw")
+    Bafumbira
+    Baga
+    Baganda_Ganda_Buganda @map("Baganda / Ganda / Buganda")
+    Baggara_Arabs         @map("Baggara Arabs")
+    Bagirmi
+    Bagisu
+    Bagwere
+    Bahima
+    Bai
+    Bainuk
+    Bajuni
+    Baka_Pygmies          @map("Baka Pygmies")
+    Bakenyi
+    Bakiga
+    Bakoko
+    Bakongo_Kongo         @map("Bakongo / Kongo")
+    Bakonjo
+    Bakossi
+    Bakoya_Pygmies        @map("Bakoya Pygmies")
+    Bakutu
+    Bakwele_Kwele         @map("Bakwele / Kwele")
+    Bakweri
+    Balanda_Boor          @map("Balanda-Boor")
+    Balanta
+    Balengue
+    Balumbe_Pygmies       @map("Balumbe Pygmies")
+    Bambara
+    Bambenga_Pygmies      @map("Bambenga Pygmies")
+    Bambuti_Mbuti         @map("Bambuti / Mbuti")
+    Bamileke
+    Bamum
+    Bana
+    Banda
+    Banen
+    Bangala
+    Bangelima
+    Bangubangu
+    Bangwa
+    Baniabungo
+    Banyambo
+    Banyankole
+    Banyaruguru
+    Banyarwanda
+    Banyole
+    Banyoro
+    Banziri_Ganzi         @map("Banziri / Ganzi")
+    Bapoto_Upoto          @map("Bapoto / Upoto")
+    Bara
+    Barabaig
+    Barambo_Barambu       @map("Barambo / Barambu")
+    Bari
+    Bariba
+    Barimba_Pygmies       @map("Barimba Pygmies")
+    Baruuli
+    Basamia
+    Bashada
+    Basotho
+    Basoga
+    Bassa_Cameroon        @map("Bassa (Cameroon)")
+    Bassa_Liberia         @map("Bassa (Liberia)")
+    Bassa_Nigeria         @map("Bassa (Nigeria)")
+    Bassari
+    Batagwenda
+    Basua
+    Batammariba
+    Batuku
+    Batwa
+    Baule
+    Bedaria_Bederia       @map("Bedaria / Bederia")
+    Bedik
+    Beja
+    Bella
+    Bemba
+    Bembe
+    Bena
+    Bench
+    Benga
+    Beri
+    Berta_Berti           @map("Berta / Berti")
+    Berom
+    Bete
+    Beti_Pahuin           @map("Beti-Pahuin")
+    Betsileo
+    Betsimisaraka
+    Bezanozano
+    Biafada
+    Bideyat_Beri          @map("Bideyat (Beri)")
+    Bidyogo_Bidjogo       @map("Bidyogo - Bidjogo")
+    Bijago
+    Bilala_Bulala         @map("Bilala / Bulala")
+    Bilen
+    Bimoba
+    Binga
+    Biombo_Bena_Biombo    @map("Biombo / Bena Biombo")
+    Bira_Babira           @map("Bira / Babira")
+    Birifor
+    Bini_Edo              @map("Bini / Edo")
+    Bisa
+    Birwa
+    Bishari
+    Bissa
+    Bissio
+    Boa_Ababua            @map("Boa / Ababua")
+    Bobo
+    Boki
+    Boko
+    Bolgo
+    Bondei
+    Bongo
+    Boni_Aweer            @map("Boni / Aweer")
+    Bono
+    Borana
+    Borgu
+    Boya_Larim            @map("Boya - Larim")
+    Bozo
+    Bua_Niellim           @map("Bua / Niellim")
+    Bubi
+    Budja_Buja            @map("Budja - Buja")
+    Budu_Mabudu           @map("Budu / Mabudu")
+    Buduma
+    Bugakwe
+    Bukusu
+    Bulahay
+    Bulsa
+    Bulu
+    Bunda_Mpuon_Mbuun     @map("Bunda / Mpuon / Mbuun")
+    Bungu
+    Bura
+    Busa
+    Burunge_Burungi       @map("Burunge / Burungi")
+    Bushongo_Bushong      @map("Bushongo / Bushong")
+    Busoga
+    Buwal
+    Buyu_Babuye           @map("Buyu / Babuye")
+    Bwa
+    Bwende
+    Bwile
+    Bwisi
+    Chagga
+    Chamba
+    Chewa
+    Chikide
+    Chinene
+    Chokwe
+    Chonyi
+    Chope
+    Chopi
+    Cicipu
+    Cishinga
+    Cubal
+    Cuepe
+    Cuis
+    Dagaaba
+    Dagik_Nuba            @map("Dagik (Nuba)")
+    Dagomba
+    Dahalo
+    Daju
+    Dakakari
+    Damay
+    Damara
+    Dangaleat
+    Darod_Somali_Clan     @map("Darod (Somali Clan)")
+    Datoga
+    Daza_Gourane          @map("Daza / Gourane")
+    Dendi
+    Dengese_Ndengese      @map("Dengese / Ndengese")
+    Denkyira
+    Denya_Anyang          @map("Denya / Anyang")
+    Dghwede
+    Dhaiso
+    Dida
+    Didinga
+    Diffa_Arabs           @map("Diffa Arabs")
+    Digil_Somali_Clan     @map("Digil (Somali Clan)")
+    Digo
+    Dimba
+    Dinka
+    Diomande_Dan          @map("Diomande (Dan)")
+    Dir_Somali_Clan_Dan   @map("Dir (Somali Clan) (Dan)")
+    Dirasha_Gidole        @map("Dirasha / Gidole")
+    Dizi
+    Djimini
+    Dodoth
+    Dogon
+    Dongotona
+    Dorobo
+    Dorze
+    Dowayo
+    Duala
+    Dukawa
+    Duma_Adouma           @map("Duma - Adouma")
+    Dupa
+    Duruma
+    Dxeriku
+    Dyula
+    Ebira
+    Ebrie
+    Edda
+    Edo
+    Efe
+    Efik
+    Ega
+    Eggon
+    Egun
+    Ejagham
+    Eket
+    Ekiti
+    Ekoi
+    Ekonda_Mongo          @map("Ekonda (Mongo)")
+    El_Molo               @map("El Molo")
+    Elgeyo
+    Eloyi_Afo             @map("Eloyi / Afo")
+    Embu
+    Esan
+    Ewe
+    Ewondo
+    Ezillo
+    Falata
+    Falasha
+    Fali_Kirdi            @map("Fali (Kirdi)")
+    Fang
+    Fante
+    Feroghe_Kaligi        @map("Feroghe / Kaligi")
+    Fipa
+    Fon
+    Frafra
+    Fulani
+    Fulbe_Kanoumoudji     @map("Fulbe Kanoumoudji")
+    Fuliiru_Fuliro        @map("Fuliiru / Fuliro")
+    Fur
+    Ga
+    Gabra
+    Gadabuursi
+    Gagu
+    Galoa
+    Galla
+    Gambue
+    Gamergu
+    Ganguela
+    Garre
+    Gavar
+    Gwa
+    Gawwada
+    Gbaya
+    Gemjek_Kirdi          @map("Gemjek (Kirdi)")
+    Gimr_Kimr             @map("Gimr / Kimr")
+    Giriama
+    Gisiga_Kirdi          @map("Gisiga (Kirdi)")
+    Glavda
+    Gogo
+    Gola
+    Gollo
+    Goma
+    Gonja
+    Gorowa_Goroa          @map("Gorowa / Goroa")
+    Gosha
+    Gouin_Gwen            @map("Gouin / Gwen")
+    Grebo
+    Griqua
+    Guang
+    Guduf
+    Guere_We              @map("Guere / We")
+    Gumuz
+    Gungu
+    Gurage
+    Gurma
+    Guro
+    Gurunsi
+    Gusii_Abagusii        @map("Gusii / Abagusii")
+    Gvoko
+    Gwari
+    Gwikwe_Bushmen        @map("Gwikwe bushmen")
+    Gyele
+    Ha
+    Habesha
+    Hadimu
+    Hadiya
+    Hadzabe
+    Hakaona
+    Ham
+    Hamer
+    Handa
+    Harari
+    Hausa
+    Hawadle_Somali_Clan   @map("Hawadle (Somali Clan)")
+    Hawazma
+    Hawiye_Somali_Clan    @map("Hawiye (Somali Clan)")
+    Haya
+    Hedareb
+    Hehe
+    Hemba
+    Herero
+    Hide_Tur              @map("Hide / Tur")
+    Himba
+    Holi_Ije              @map("Holi / Ije")
+    Holoholo
+    Hororo
+    Humbi
+    Humr_Humur            @map("Humr / Humur")
+    Hunde
+    Hunganna_Bahuana      @map("Hunganna / Bahuana")
+    Hutu
+    Hurza_Kirdi           @map("Hurza (Kirdi)")
+    Ibibio
+    Idoma
+    Ifoto
+    Igala
+    Igbo
+    Igbomina
+    Igede
+    Ijaw_Ijo              @map("Ijaw / Ijo")
+    Ije_Holi              @map("Ije / Holi")
+    Ijebu
+    Ijesha
+    Ikoma
+    Ila
+    Ilchamus
+    Imatong
+    Imraghen
+    Indri
+    Iramba_Nyiramba       @map("Iramba / Nyiramba")
+    Iraqw
+    Irigwe
+    Isaaq
+    Issa
+    Isukha
+    Iteso_Teso            @map("Iteso - Teso")
+    Itsekiri
+    Jabo
+    Jakhanke_Jahanka      @map("Jakhanke / Jahanka")
+    Japadhola
+    Jeberti
+    Jenjo_Dza             @map("Jenjo / Dza")
+    Jibu
+    Jie
+    Jijili
+    Jiye
+    Jola_Diola            @map("Jola / Diola")
+    Joluo_Luo             @map("Joluo (Luo)")
+    Jukun
+    Jumjum
+    Jur
+    Jur_Mananger          @map("Jur Mananger")
+    Kababish
+    Kabras
+    Kabye_Kabre           @map("Kabye / Kabre")
+    Kachipo
+    Kadam
+    Kadara_Adara          @map("Kadara / Adara")
+    Kafa_Kafficho         @map("Kafa / Kafficho")
+    Kagulu_Kaguru         @map("Kagulu / Kaguru")
+    Kakwa
+    Kalanga
+    Kalenjin
+    Kamba
+    Kambari
+    Kami
+    Kamwe
+    Kanam
+    Kanembu
+    Kango
+    Kanuri
+    Kaonde
+    Kapsiki_Kirdi         @map("Kapsiki (Kirdi)")
+    Karagwe_Nyambo        @map("Karagwe / Nyambo")
+    Karamojong
+    Karo
+    Karoninka
+    Kassena
+    Karrayyu_Kereyu       @map("Karrayyu / Kereyu")
+    Katana_Mama           @map("Katana / Mama")
+    Kela_Akela            @map("Kela / Akela")
+    Keliko
+    Kenga
+    Kete_Mbagani          @map("Kete / Mbagani")
+    Ketebo_Mening         @map("Ketebo - Mening")
+    Kgalagadi_Bakgalagadi @map("Kgalagadi / Bakgalagadi")
+    KhoiKhoi
+    Khoisan
+    Kikuyu
+    Kinga
+    Kipsigis
+    Kirdi
+    Kissi
+    Kom
+    Koma
+    Komo_Bakumu           @map("Komo / Bakumu")
+    Komoganza
+    Kongo
+    Konkomba
+    Kono
+    Konso
+    Konyagi_Wamei         @map("Konyagi / Wamei")
+    Konzo_Konjo           @map("Konzo - Konjo")
+    Korbo
+    Korekore
+    Koro
+    Kota
+    Kotoko
+    Kotokoli_Temba        @map("Kotokoli - Temba")
+    Kpelle
+    Krahn
+    Krobo
+    Krongo_Nuba           @map("Krongo (Nuba)")
+    Kru
+    Kuba
+    Kujarke
+    Kuku
+    Kulango
+    Kumam
+    Kunama
+    Kunda
+    Kung
+    Kurang
+    Kuranko_Koranko       @map("Kuranko / Koranko")
+    Kuria
+    Kurtey
+    Kurumba
+    Kusasi
+    Kusu
+    Kutu
+    Kuyu
+    Kwahu
+    Kwala
+    Kwama
+    Kwandu
+    Kwanyama
+    Kwasio_Bujeba         @map("Kwasio - Bujeba")
+    Kwaya
+    Kwegu
+    Kwele_Bakwele         @map("Kwele / Bakwele")
+    Kwere
+    Kwisi
+    Lafon
+    Laka
+    Lala
+    Lamang
+    Lamba_Togo            @map("Lamba (Togo)")
+    Lamba_Zambia          @map("Lamba (Zambia)")
+    Lambya
+    Lango
+    Landuma
+    Larim
+    Lega
+    Lele
+    Lendu
+    Lengola
+    Lenje
+    Lese_Pygmies          @map("Lese Pygmies")
+    Ligbi
+    Lika
+    Limba
+    Lobedu
+    Lobi
+    Logir
+    Logo
+    Loi_Baloi             @map("Loi / Baloi")
+    Lokoya
+    Loma
+    Lomwe
+    Longuda
+    Lopit
+    Lokele_Wagenia        @map("Lokele / Wagenia")
+    Loko
+    Losso
+    Lotuko
+    Lozi
+    Luba
+    Luchazi
+    Lugbara
+    Lugot
+    Luguru
+    Luhya
+    Lulua_Luluwa          @map("Lulua - Luluwa")
+    Lulubo
+    Lumbo_Lumbu           @map("Lumbo / Lumbu")
+    Lunda
+    Lungu
+    Luo
+    Luvale_Lwena          @map("Luvale / Lwena")
+    Luwo
+    Lwalwa
+    Maasai
+    Maba
+    Maban
+    Mabas
+    Mabato
+    Mada_Kirdi            @map("Mada (Kirdi)")
+    Madi
+    Mafa_Kirdi            @map("Mafa (Kirdi)")
+    Mahafaly
+    Mahi
+    Mahongwe
+    Mai_Mai               @map("Mai-Mai")
+    Majang_Majangir       @map("Majang / Majangir")
+    Makaa
+    Makere
+    Makoa
+    Makonde
+    Makua
+    Malinke
+    Mama_Katana           @map("Mama / Katana")
+    Mambila
+    Mamprusi
+    Mamvu
+    Mandara
+    Malinke_Madinka       @map("Malinke / Mandinka")
+    Mande
+    Mandja
+    Mangayat
+    Mangbetu
+    Manjak
+    Mankanya
+    Mano
+    Manyika
+    Mao
+    Marakwet
+    Maravi_Nyanja         @map("Maravi / Nyanja")
+    Margi
+    Masa_Banana           @map("Masa - Banana")
+    Marka
+    Masaba
+    Masalit
+    Mau
+    Maya
+    Mbaka
+    Mbala_Bambala         @map("Mbala / Bambala")
+    Mbanja
+    Mbarakwengo
+    Mbeere
+    Mbete_Ambete          @map("Mbete / Ambete")
+    Mbochi
+    Mboku
+    Mbole
+    Mbororo
+    Mbugwe
+    Mbukushu
+    Mbum
+    Mbunda
+    Mbundu
+    Mbunza
+    Mbuva
+    Meen_Bodi_Mekan       @map("Meen - Bodi - Mekan")
+    Mende
+    Menit
+    Merina
+    Meru
+    Mesakin_Nuba          @map("Mesakin (Nuba)")
+    Messiria
+    Metoko_Mituku         @map("Metoko / Mituku")
+    Midob_Meido           @map("Midob / Meido")
+    Mijikenda
+    Mikea
+    Mikifore
+    Mima
+    Mimi
+    Mina
+    Mineo
+    Minianka
+    Mitsogo
+    Moba_Bimoba           @map("Moba (Bimoba)")
+    Mofu_Kirdi            @map("Mofu (Kirdi)")
+    Mole_Dagbon           @map("Mole-Dagbon")
+    Molokwo_Kirdi         @map("Molokwo (Kirdi)")
+    Mongo
+    Moor
+    Mora_Kirdi            @map("Mora (Kirdi)")
+    Morokodo
+    Moru
+    Mossi
+    Moussey_Musei         @map("Moussey / Musei")
+    Mpongwe
+    Muduvu
+    Muila
+    Mukogodo
+    Muktele
+    Mumuye
+    Mundang
+    Mundari
+    Mundu
+    Munyoyaya
+    Murle
+    Mursi
+    Musgum_Kirdi          @map("Musgum (Kirdi)")
+    Muyang_Kirdi          @map("Muyang (Kirdi)")
+    Mwanga
+    Nafana
+    Nalu
+    Nama
+    Nande
+    Nandi
+    Napore
+    Nara
+    Ndaka
+    Ndali_Sukwa           @map("Ndali / Sukwa")
+    Ndamba
+    Ndau
+    Ndebele
+    Ndembu
+    Ndengereko
+    Ndogo
+    Ndowe
+    Ndreme
+    Ndyuka
+    Nemadi
+    Neyo
+    Ngando_Bangandu       @map("Ngando / Bangandu")
+    Ngbaka
+    Ngbandi
+    Ngendelengo
+    Ngombe
+    Ngonde
+    Ngongo
+    Ngoni
+    Ngulngule
+    Nguni
+    Ninzam_Ninzo          @map("Ninzam / Ninzo")
+    Njem
+    Njemps_Ilchamus       @map("Njemps / Ilchamus")
+    Nok
+    Nkanu
+    Nkoya
+    Nkundu
+    Nkutu_Kutshu          @map("Nkutu / Kutshu")
+    Nsenga
+    Nso
+    Ntomba
+    Nuba
+    Nuba_Krongo           @map("Nuba Krongo")
+    Nuba_Mesakin          @map("Nuba Mesakin")
+    Nuba_Shatt            @map("Nuba Shatt")
+    Nubi_Nubian           @map("Nubi - Nubian")
+    Nuer
+    Nuna_Nunuma           @map("Nuna / Nunuma")
+    Nupe
+    Nyakyusa
+    Nyambo_Karagwe        @map("Nyambo / Karagwe")
+    Nyamwezi
+    Nyanga
+    Nyangatom
+    Nyangia
+    Nyangwara
+    Nyanja_Maravi         @map("Nyanja / Maravi")
+    Nyiha
+    Nyindu
+    Nzebi
+    Nzema
+    Ogoni
+    Okavango_Peoples      @map("Okavango peoples")
+    Okebu_Kebu            @map("Okebu (Kebu)")
+    Okiek
+    Olubo
+    Omotic
+    Ondo
+    Opo
+    Orma
+    Oron
+    Oromo
+    Oropom
+    Ovambo
+    Ovimbundu
+    Owo
+    Papel
+    Parakuyo
+    Pare
+    Pari_Lafon            @map("Pari - Lafon")
+    Pedi
+    Pende
+    Pila_Pila             @map("Pila Pila")
+    Podoko_Kirdi          @map("Podoko (Kirdi)")
+    Pojulu
+    Pokomo
+    Pokot
+    Pondo_Mpondo          @map("Pondo / Mpondo")
+    Punu
+    Qemant_Agaw           @map("Qemant (Agaw)")
+    Rahanweyn_Somali_Clan @map("Rahanweyn (Somali Clan)")
+    Rangi
+    Rashaida
+    Reguibat
+    Rendille
+    Rer_Bare              @map("Rer Bare")
+    Reshe_Reshawa         @map("Reshe / Reshawa")
+    Rozwi_Rozvi           @map("Rozwi / Rozvi")
+    Rukuba
+    Rundi
+    Sagara
+    Saho
+    Sakalava
+    Sakata_Basakata       @map("Sakata / Basakata")
+    Sakuye
+    Salampasu
+    Samburu
+    Samia
+    Samo_Kalemse          @map("Samo / kalemse")
+    San
+    Sandawe
+    Sango_Sanga           @map("Sango / Sanga")
+    Sanye_Watha           @map("Sanye - Watha")
+    Sara
+    Saransoor_Somali_Clan @map("Saransoor (Somali Clan)")
+    Seba
+    Sebei
+    Sefwi
+    Segeju
+    Seke
+    Sena
+    Senga
+    Sengwer
+    Senufo
+    Serahule
+    Sere
+    Serer
+    Shai
+    Shambaa
+    Shangawa_Shanga       @map("Shangawa / Shanga")
+    Shatt_Thuri           @map("Shatt (Thuri)")
+    Sherbro
+    Shi_Mashi             @map("Shi / Mashi")
+    Shilluk
+    Shona
+    Shuwa_Arabs           @map("Shuwa Arabs")
+    Sidama_Sidamo_Sadama  @map("Sidama / Sidamo / Sadama")
+    Sihanaka
+    Sinyar
+    Sissala
+    Somalis
+    Somba
+    Sonde
+    Songhai
+    Songo
+    Songora
+    Songye
+    Soninke
+    Sonjo_Temi            @map("Sonjo (Temi)")
+    Suba
+    Subia_Subiya          @map("Subia / Subiya")
+    Suku
+    Sukuma
+    Sukur
+    Sumbwa
+    Sundi_Basundi         @map("Sundi / Basundi")
+    Suri
+    Surma
+    Susu
+    Swahili
+    Swazi
+    Tabwa
+    Taita
+    Tallensi
+    Tama
+    Tamberma
+    Tammari
+    Tana_Orma             @map("Tana Orma")
+    Tanala
+    Tandroy
+    Taneka
+    Taveta
+    Teda
+    Tchamba
+    Teke
+    Temba_Kotokoli        @map("Temba - Kotokoli")
+    Temne
+    Tenda_Tanda           @map("Tenda / Tanda")
+    Tenet
+    Tepeth_So             @map("Tepeth / So")
+    Tera
+    Terik
+    Teso_Iteso            @map("Teso - Iteso")
+    Tetela
+    Tharaka
+    Thembu_Tembu          @map("Thembu / Tembu")
+    Thur_Ethur            @map("Thur / Ethur")
+    Tid_Ik_Teuso          @map("Tid / Ik / Teuso")
+    Tiefo_Tyefo           @map("Tiefo / Tyefo")
+    Tigray
+    Tigre
+    Tigrinya
+    Tikar
+    Tiv
+    Tjimba
+    Tofinou
+    Toma
+    Tonga
+    Tonga_Malawi          @map("Tonga (Malawi)")
+    Tongwe
+    Topnaar
+    Topoke
+    Toposa
+    Toro_Tooro            @map("Toro / Tooro")
+    Toubou
+    Tsemai
+    Tsimihety
+    Tsonga
+    Tswa
+    Tswana
+    Tua
+    Tuareg
+    Tugen
+    Tukulor_Haalpulaar    @map("Tukulor / Haalpulaar")
+    Tumbuka
+    Tumbwe
+    Tunjur_Tungur         @map("Tunjur / Tungur")
+    Tupuri_Kirdi          @map("Tupuri (Kirdi)")
+    Tur
+    Turka
+    Turkana
+    Turu
+    Turumbu
+    Tutsi
+    Twa
+    Uldeme_Kirdi          @map("Uldeme (Kirdi)")
+    Uduk
+    Ukelle
+    Urhobo
+    Vadoma
+    Vai
+    Vale
+    Vemgo
+    Venda
+    Veere_Vere            @map("Verre / Vere")
+    Vezo
+    Vili
+    Vira_Bira             @map("Vira / Bira")
+    Vizik
+    Watha_Sanye           @map("Watha - Sanye")
+    Wadela
+    Waila
+    Wanda
+    Wasa
+    Welayta
+    Welega_Oromo          @map("Welega Oromo")
+    Winiama
+    Wodaabe
+    Wogo
+    Wolof
+    Wongo
+    Woyo
+    Wula
+    Wum_Aghem             @map("Wum / Aghem")
+    Xanekwe
+    Xhosa
+    Xindonga
+    Yaaku
+    Yacuba_Dan            @map("Yacuba - Dan")
+    Yaka
+    Yako
+    Yakoma
+    Yalunka_Dialonke      @map("Yalunka / Dialonke")
+    Yansi_Yanzi           @map("Yansi / Yanzi")
+    Yao
+    Yaure
+    Yeke_Garanganze       @map("Yeke / Garanganze")
+    Yeyi_Yeye             @map("Yeyi (Yeye)")
+    Yombe
+    Yoruba
+    Yoruba_Egba           @map("Yoruba-Egba")
+    Yoruba_Ife            @map("Yoruba-Ife")
+    Yulu
+    Zafimaniry
+    Zaraghawa_Beri        @map("Zaghawa (Beri)")
+    Zande
+    Zaramo
+    Zarma_Zerma           @map("Zarma / Zerma")
+    Zay
+    Zelidva
+    Zemba
+    Zezuru
+    Zigua_Zigula          @map("Zigua / Zigula")
+    Zinza
+    Zombo
+    Zul
+    Zulgo_Kirdi           @map("Zulgo (Kirdi)")
+    Zulu
+    Zyoba
+}
